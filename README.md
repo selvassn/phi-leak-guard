@@ -1,5 +1,6 @@
 # phi-leak-guard
 
+[![CI](https://github.com/selvassn/phi-leak-guard/actions/workflows/ci.yml/badge.svg)](https://github.com/selvassn/phi-leak-guard/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/phi-leak-guard.svg)](https://www.npmjs.com/package/phi-leak-guard)
 [![license](https://img.shields.io/npm/l/phi-leak-guard.svg)](./LICENSE)
 [![types](https://img.shields.io/npm/types/phi-leak-guard.svg)](https://www.npmjs.com/package/phi-leak-guard)
