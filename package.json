@@ -1,0 +1,49 @@
+{
+  "name": "phi-leak-guard",
+  "version": "0.0.1",
+  "description": "Deterministic PHI-leak assertions for LLM output, runnable in your normal test suite. HIPAA Safe Harbor + NHS/UK. No LLM calls, no data leaves your machine.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run test/",
+    "test:watch": "vitest",
+    "bench": "vitest run bench/",
+    "build:names": "node scripts/build-names.mjs",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run typecheck && npm run test && npm run build"
+  },
+  "keywords": [
+    "phi", "pii", "hipaa", "gdpr", "nhs", "llm", "eval", "evaluation",
+    "redaction", "healthcare", "compliance", "vitest", "jest", "deidentification"
+  ],
+  "author": "Selva Kumar <selvakg@hotmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/selvassn/phi-leak-guard.git"
+  },
+  "homepage": "https://github.com/selvassn/phi-leak-guard#readme",
+  "bugs": {
+    "url": "https://github.com/selvassn/phi-leak-guard/issues"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
