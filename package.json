@@ -1,6 +1,6 @@
 {
   "name": "phi-leak-guard",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Deterministic PHI-leak assertions for LLM output, runnable in your normal test suite. HIPAA Safe Harbor + NHS/UK. No LLM calls, no data leaves your machine.",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -11,9 +11,19 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./vitest": {
+      "types": "./dist/vitest.d.ts",
+      "import": "./dist/vitest.js",
+      "require": "./dist/vitest.cjs"
+    },
+    "./matchers": {
+      "types": "./dist/matchers.d.ts",
+      "import": "./dist/matchers.js",
+      "require": "./dist/matchers.cjs"
     }
   },
-  "files": ["dist"],
+  "files": ["dist", "CHANGELOG.md"],
   "sideEffects": false,
   "engines": {
     "node": ">=18"

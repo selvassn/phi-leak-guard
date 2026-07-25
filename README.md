@@ -56,6 +56,35 @@ Expected output to contain no PHI, but found 2:
   - [nhs-number] "943 476 5919" (validated) at 40-52
 ```
 
+### Use the native test matcher
+
+Prefer `expect(...).toContainNoPHI()` that reads like any other matcher?
+
+**Vitest** — one import auto-registers it (with types):
+
+```ts
+import 'phi-leak-guard/vitest';
+
+test('summary is clean', () => {
+  expect(summary).toContainNoPHI();
+  expect(summary).toContainNoPHI({ standards: ['HIPAA_SAFE_HARBOR'] });
+  expect(leakyOutput).not.toContainNoPHI();
+});
+```
+
+**Jest** (or any `expect.extend`-compatible runner):
+
+```ts
+import { expect } from '@jest/globals';
+import { phiMatchers } from 'phi-leak-guard/matchers';
+
+expect.extend(phiMatchers);
+// For types, add once in a .d.ts:
+//   declare module 'expect' {
+//     interface Matchers<R> { toContainNoPHI(options?: import('phi-leak-guard').DetectOptions): R }
+//   }
+```
+
 ### Inspect matches directly
 
 ```ts
@@ -154,6 +183,10 @@ npm run build     # dual ESM + CJS build
 ```
 
 Adding a recognizer = implement the `Recognizer` interface and register it in `src/recognizers/registry.ts`. The name gazetteer is generated from authoritative data with `npm run build:names`.
+
+## Stability
+
+As of **1.0.0** the public API — `detectPHI`, `expectLLM`, `redactPHI`, the `toContainNoPHI` matcher, `coverageFor`/`coverageReport`, the `Recognizer` interface, and `DetectOptions` — is stable and follows [Semantic Versioning](https://semver.org/). New recognizers and options are added in minor releases; breaking changes only in a major. See [CHANGELOG.md](./CHANGELOG.md).
 
 ## License
 

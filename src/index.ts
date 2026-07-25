@@ -1,5 +1,6 @@
 export { expectLLM, PHIAssertionError } from './expect';
 export type { LLMAssertion } from './expect';
+export { phiMatchers } from './matchers';
 
 export { detectPHI } from './detect';
 export { redactPHI } from './redact';
