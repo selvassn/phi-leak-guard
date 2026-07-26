@@ -170,6 +170,8 @@ Read these before you rely on it — being honest about them is the point.
 - `detectPHI(text, options?)` → `{ matches: PHIMatch[]; clean: boolean }`
 - `redactPHI(text, options?)` → `{ text: string; redactions: number }`
 - `coverageFor(standard)` / `coverageReport()` → per-standard coverage
+- `import 'phi-leak-guard/vitest'` → registers `expect(x).toContainNoPHI(options?)` (Vitest, with types)
+- `phiMatchers` (`phi-leak-guard/matchers`) → for `expect.extend` in Jest or any compatible runner
 - `options`: `{ standards?: Standard[]; extraRecognizers?: Recognizer[] }`
 - `Standard`: `'HIPAA_SAFE_HARBOR' | 'UK_GDPR'`
 
