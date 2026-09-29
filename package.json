@@ -1,6 +1,6 @@
 {
   "name": "phi-leak-guard",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Deterministic PHI-leak assertions for LLM output, runnable in your normal test suite. HIPAA Safe Harbor + NHS/UK. No LLM calls, no data leaves your machine.",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -209,3 +209,109 @@ describe('coverage report', () => {
     expect(uk.missing).toHaveLength(0);
   });
 });
+
+describe('phone context is local, not document-wide (regression)', () => {
+  // A phone marker anywhere in the document used to make EVERY bare 10-digit
+  // run a phone, so a realistic note — which always mentions a number
+  // somewhere — double-claimed its NHS number as a phone.
+  it('does not let a distant "Tel" claim an NHS number', () => {
+    const r = detectPHI('NHS 943 476 5919. Tel 0207 946 0958.');
+    expect(r.matches.filter((m) => m.category === 'phone')).toHaveLength(1);
+    expect(r.matches.find((m) => m.category === 'phone')?.value).toBe('0207 946 0958');
+    expect(r.matches.some((m) => m.category === 'nhs-number')).toBe(true);
+  });
+
+  it('holds across a full clinical note', () => {
+    const note = [
+      'Patient: John Smith, NHS 943 476 5919, MRN: A4821337.',
+      'Tel 0207 946 0958. Discharged in stable condition.',
+    ].join('\n');
+    const nhs = detectPHI(note).matches.filter((m) => m.category === 'nhs-number');
+    const phones = detectPHI(note).matches.filter((m) => m.category === 'phone');
+    expect(nhs).toHaveLength(1);
+    expect(phones).toHaveLength(1);
+    expect(phones[0]?.value).toBe('0207 946 0958');
+  });
+
+  it('still catches a bare 10-digit US phone with an adjacent marker', () => {
+    expect(detectPHI('phone 202 555 0173').matches.some((m) => m.category === 'phone')).toBe(true);
+    expect(detectPHI('telephone: 202 555 0173').matches.some((m) => m.category === 'phone')).toBe(true);
+  });
+
+  it('still tags a fax-labelled number as fax', () => {
+    expect(detectPHI('Fax 0207 946 0958 for records').matches.some((m) => m.category === 'fax')).toBe(true);
+  });
+});
+
+describe('redactPHI overlapping spans (regression)', () => {
+  // Overlapping matches were each replaced at offsets the previous replacement
+  // had already invalidated, corrupting the output and inflating the count.
+  it('redacts an overlapped identifier exactly once, without corruption', () => {
+    const { text, redactions } = redactPHI('Ref 9434765919 please call the ward.');
+    expect(text).toBe('Ref [NHS-NUMBER] please call the ward.');
+    expect(redactions).toBe(1);
+  });
+
+  it('prefers the validated recognizer when two claim the same span', () => {
+    // "tel" sits directly before the number, so phone and nhs-number both fire;
+    // the checksum-validated match wins the label.
+    const { text } = redactPHI('tel 9434765919');
+    expect(text).toBe('tel [NHS-NUMBER]');
+  });
+
+  it('leaves no digits of an overlapped identifier behind', () => {
+    const { text } = redactPHI('Contact 943.476.5919 by phone or 192.168.14.203 online');
+    expect(text).not.toMatch(/\d{3}/);
+    expect(text).toContain('[NHS-NUMBER]');
+    expect(text).toContain('[IP]');
+  });
+
+  it('still redacts multiple distinct identifiers', () => {
+    const { text, redactions } = redactPHI('Email jane.doe@example.com about MRN A4821337');
+    expect(text).toBe('Email [EMAIL] about MRN [MRN]');
+    expect(redactions).toBe(2);
+  });
+});
+
+describe('person-name honorifics (regression)', () => {
+  // The greedy capitalised-run match swallowed the title, tested "mr"/"dr"
+  // against the gazetteer, failed, and discarded the real name inside the span.
+  // "Dr." survived only because the full stop breaks the run by accident —
+  // and British style drops that stop, so the broken form was the common one.
+  it.each([
+    ['Mr John Smith was reviewed.', 'John Smith'],
+    ['Mrs Mary Smith attended.', 'Mary Smith'],
+    ['Dr Sarah Patel signed it.', 'Sarah Patel'],
+    ['Dr. Sarah Patel signed it.', 'Sarah Patel'],
+    ['Seen by Prof Alan Hughes.', 'Alan Hughes'],
+    ['Miss Emily Clarke attended.', 'Emily Clarke'],
+  ])('finds the name in %j', (text, expected) => {
+    expect(detectPHI(text).matches.find((m) => m.category === 'name')?.value).toBe(expected);
+  });
+
+  it('reports offsets for the name, not the title', () => {
+    const text = 'Mr John Smith was reviewed.';
+    const m = detectPHI(text).matches.find((x) => x.category === 'name')!;
+    expect(text.slice(m.start, m.end)).toBe('John Smith');
+  });
+
+  it('keeps the place guard after stripping the title', () => {
+    expect(detectPHI('Follow-up at Sister Mary Hospital next month.').matches
+      .some((m) => m.category === 'name')).toBe(false);
+  });
+
+  it('keeps the ambiguous-given guard after stripping the title', () => {
+    expect(detectPHI('Admitted to Mr Rose Cottage respite unit.').matches
+      .some((m) => m.category === 'name')).toBe(false);
+  });
+
+  it('does not claim a title followed by a lone surname (precision-first)', () => {
+    expect(detectPHI('Dr Smith reviewed the patient.').matches
+      .some((m) => m.category === 'name')).toBe(false);
+  });
+
+  it('redacts the name and leaves the title in place', () => {
+    expect(redactPHI('Mr John Smith was seen by Dr Sarah Patel.').text)
+      .toBe('Mr [NAME] was seen by Dr [NAME].');
+  });
+});

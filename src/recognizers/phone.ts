@@ -11,10 +11,21 @@ import type { PHICategory, PHIMatch, Recognizer } from '../types';
  * phone-context word). That leaves 10-digit NHS numbers to the NHS recognizer
  * and avoids flagging order numbers. A number preceded by "fax" is tagged as
  * the `fax` category (hence `alsoCovers`).
+ *
+ * The phone marker must be NEAR the candidate, not merely somewhere in the
+ * document: a note reading "NHS 943 476 5919 ... Tel 0207 946 0958" mentions a
+ * phone, but that says nothing about the NHS number twelve words earlier.
+ * Scanning the whole text would let one "Tel" claim every 10-digit run on the
+ * page, so context is read from a short window immediately before the match.
  */
 const CANDIDATE = /\+?\d[\d\s().-]{7,15}\d/g;
 const PHONE_CONTEXT = /\b(phone|telephone|tel|mobile|cell|call|fax)\b/i;
 const FAX_NEARBY = /fax/i;
+
+/** Chars before a candidate searched for a phone marker. */
+const CONTEXT_WINDOW = 25;
+/** Tighter window for the fax label, which sits directly against the number. */
+const FAX_WINDOW = 12;
 
 function isPhone(raw: string, hasContext: boolean): boolean {
   const hadPlus = raw.trimStart().startsWith('+');
@@ -33,13 +44,12 @@ export const phoneRecognizer: Recognizer = {
   alsoCovers: ['fax'],
   standards: ['HIPAA_SAFE_HARBOR', 'UK_GDPR'],
   detect(text) {
-    const hasContext = PHONE_CONTEXT.test(text);
     const matches: PHIMatch[] = [];
     for (const m of text.matchAll(CANDIDATE)) {
-      if (!isPhone(m[0], hasContext)) continue;
+      const preceding = text.slice(Math.max(0, m.index - CONTEXT_WINDOW), m.index);
+      if (!isPhone(m[0], PHONE_CONTEXT.test(preceding))) continue;
       // A "fax" label just before the number reclassifies it.
-      const preceding = text.slice(Math.max(0, m.index - 12), m.index);
-      const category: PHICategory = FAX_NEARBY.test(preceding) ? 'fax' : 'phone';
+      const category: PHICategory = FAX_NEARBY.test(preceding.slice(-FAX_WINDOW)) ? 'fax' : 'phone';
       matches.push({
         recognizer: 'phone', category, value: m[0],
         start: m.index, end: m.index + m[0].length, confidence: 'pattern',

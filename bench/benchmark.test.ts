@@ -78,6 +78,13 @@ const hardPositives: Sample[] = [
   { text: `Applicant SSN 234 56 7891 on the form.`, expected: [{ category: 'ssn', value: '234567891' }] },
   { text: `The patient, John Smith, was reviewed on the ward round.`, expected: [{ category: 'name', value: 'John Smith' }] },
   { text: `Reviewed by Dr. Aaliyah Hussain in the outpatient clinic.`, expected: [{ category: 'name', value: 'Aaliyah Hussain' }] },
+  // Unpunctuated honorifics — British style drops the full stop, so these are
+  // the COMMON form in UK notes. The greedy capitalised-run match used to
+  // swallow the title and discard the name inside it.
+  { text: `Mr John Smith was reviewed on the ward round.`, expected: [{ category: 'name', value: 'John Smith' }] },
+  { text: `Dr Sarah Patel signed the discharge summary.`, expected: [{ category: 'name', value: 'Sarah Patel' }] },
+  { text: `Mrs Mary Smith attended with her husband.`, expected: [{ category: 'name', value: 'Mary Smith' }] },
+  { text: `Seen by Prof Alan Hughes in the respiratory clinic.`, expected: [{ category: 'name', value: 'Alan Hughes' }] },
   { text: `Date of birth 14/03/1962, no known allergies.`, expected: [{ category: 'date', value: '14/03/1962' }] },
   { text: `Lives at 22 Elm Road, Manchester M14 5GL.`, expected: [{ category: 'geographic', value: 'M14 5GL' }] },
   { text: `Patient resides at ZIP 90210 currently.`, expected: [{ category: 'geographic', value: '90210' }] },
@@ -108,6 +115,8 @@ const distractors: Sample[] = [
   // FP tripwires for the name gazetteer.
   { text: 'Admitted to Rose Cottage care home for respite.', expected: [] },
   { text: 'Referred to Victoria Hospital outpatients department.', expected: [] },
+  // Strips to "Mary Hospital" — the place guard must still reject it.
+  { text: 'Follow-up at Sister Mary Hospital next month.', expected: [] },
   { text: 'The Grace Period on the account has now expired.', expected: [] },
 ];
 
@@ -207,7 +216,11 @@ describe('synthetic PHI benchmark', () => {
 // Baseline measured on the current recognizer set. Ratchet upward as recall
 // improves; never lower it to make a regression pass.
 // History: 0.70 -> 0.76 -> 0.90 -> 0.97 (phone+ZIP)
-//          -> current (added nino/url/ip/VIN/mrn/account; only a rare name misses).
+//          -> 0.97 (added nino/url/ip/VIN/mrn/account)
+//          -> current (honorific stripping). Adding the unpunctuated-title
+//             cases dropped the OLD recognizer to name R 0.29 / overall R 0.88,
+//             below this ratchet — the corpus had only ever tested "Dr." with a
+//             full stop, which breaks the capitalised run by accident.
 const BASELINE = {
-  overallRecall: 0.95,
+  overallRecall: 0.97,
 };

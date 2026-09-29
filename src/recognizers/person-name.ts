@@ -17,6 +17,13 @@ import { GIVEN_NAMES } from '../data/given-names.generated';
  *   3. reject when the trailing token is a place/institution word (a name
  *      like "Rose Cottage" or "Victoria Hospital" is a location, not a person).
  *
+ * Honorifics are stripped before rule 1 is applied. Without that, the greedy
+ * capitalised-run match swallows the title ("Mr John Smith" is one span), the
+ * gazetteer test then runs against "mr", fails, and the real name inside is
+ * discarded. A trailing full stop happens to break the run — which is why
+ * "Dr. Sarah Patel" was found but "Dr Sarah Patel" was not — and British style
+ * drops that full stop, so the unpunctuated form is the common one in UK notes.
+ *
  * For real recall on names, plug a statistical NER model in via
  * `DetectOptions.extraRecognizers`. This list is the free floor, not the ceiling.
  */
@@ -40,6 +47,12 @@ const PLACE_INSTITUTION = new Set<string>([
   'home', 'wing', 'unit', 'bridge', 'green', 'view', 'lodge', 'grove',
 ]);
 
+// Leading titles, with or without the full stop. Longer forms precede their
+// own prefixes so the alternation can't stop short (Mrs before Mr, Prof before
+// Pro-nothing, etc. — the regex would backtrack anyway, but explicit is safer).
+const LEADING_HONORIFIC =
+  /^(?:(?:Professor|Prof|Doctor|Dr|Reverend|Rev|Father|Fr|Master|Matron|Sister|Nurse|Mrs|Miss|Mx|Ms|Mr|Sir|Dame|Lady|Lord)\.?\s+)+/i;
+
 // Sequences of 2+ capitalised, alphabetic tokens (allowing hyphen/apostrophe).
 const CAP_SEQUENCE = /\b[A-Z][a-z'’-]+(?:\s+[A-Z][a-z'’-]+)+\b/g;
 
@@ -50,8 +63,15 @@ export const personNameRecognizer: Recognizer = {
   detect(text) {
     const matches: PHIMatch[] = [];
     for (const m of text.matchAll(CAP_SEQUENCE)) {
-      const span = m[0];
+      // Drop any leading title, and shift the offset by exactly what was cut.
+      const span = m[0].replace(LEADING_HONORIFIC, '');
+      const offset = m[0].length - span.length;
+
       const tokens = span.split(/\s+/);
+      // A title followed by a lone surname ("Dr Smith") leaves nothing to check
+      // against the gazetteer — precision-first, so it is left undetected.
+      if (tokens.length < 2) continue;
+
       const first = tokens[0]!.toLowerCase();
       const second = tokens[1]!.toLowerCase();
 
@@ -62,8 +82,8 @@ export const personNameRecognizer: Recognizer = {
         recognizer: 'person-name',
         category: 'name',
         value: span,
-        start: m.index,
-        end: m.index + span.length,
+        start: m.index + offset,
+        end: m.index + offset + span.length,
         confidence: 'pattern',
       });
     }
